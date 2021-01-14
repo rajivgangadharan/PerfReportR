@@ -1,0 +1,108 @@
+---
+title: "Agile Metrics"
+author: "Rajiv Gangadharan"
+date: "18/08/2020"
+output: pdf_document
+params:
+  data: "DataSet_OP.csv"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("../Common/jirametrics.R")
+fileName <- params$data
+df <- readDataset(fileName,"|")
+tib <- df %>% 
+      as_tibble() %>%
+      mutate(crdt = toDate(Created),
+             updt = toDate(Updated),
+             cldt = toDate(Closed),
+             cylt = as.numeric(cldt - crdt))
+```
+
+## Feature Cycle Time
+```{r epics, include=TRUE, echo=FALSE}
+epics <- tib %>% filter(! is.na(Closed)) %>% filter(Type == "Epic")
+ggplot(epics, aes(x=cldt, y=cylt)) +
+    geom_point(aes(colour = factor(Priority))) +
+    xlab("Reporting Period") +
+    ylab("Cycle Time (Days)") +
+    theme(legend.position="bottom",
+          legend.direction="horizontal",
+          legend.title = element_blank())
+```
+
+
+## Story Cycle Time
+```{r story, include=TRUE, echo=FALSE}
+stories <- tib %>% filter(! is.na(Closed)) %>% filter(Type == "Story")
+ggplot(stories, aes(x=cldt, y=cylt)) +
+    geom_point(aes(colour = factor(Priority))) +
+    geom_smooth(method = "lm",
+                formula = y ~ x, 
+                se = FALSE, 
+                colour="#FF9999", 
+                size=1) +
+    xlab("Reporting Period") +
+    ylab("Cycle Time (Days)") +
+    theme(legend.position="bottom",
+          legend.direction="horizontal",
+          legend.title = element_blank())
+```
+
+## Feature Throughput
+```{r feature_throughput, include=TRUE, echo=FALSE}
+throughput_df.epics  <- epics %>%   group_by(cldt) %>%  
+  summarise(nwi = length(Key),.groups='drop')
+ggplot(throughput_df.epics, aes(x=cldt, y=nwi)) +
+    geom_line() +
+  geom_point(size=2, color="#FF9999") +
+    geom_smooth(method = "lm",
+                formula = y ~ x, 
+                se = FALSE, 
+                colour="red", 
+                size=1) +
+    xlab("Reporting Period") +
+    ylab("Number of Work Items") +
+    theme(legend.position="bottom",
+          legend.direction="horizontal",
+          legend.title = element_blank())
+```
+
+## Story Throughput
+```{r stories_throughput, include=TRUE, echo=FALSE}
+throughput_df.stories  <- stories %>%   group_by(cldt) %>%  
+  summarise(nwi = length(Key),.groups='drop')
+ggplot(throughput_df.stories, aes(x=cldt, y=nwi)) +
+    geom_line() +
+    geom_point(size=2, color="#FF9999") +
+    geom_smooth(method = "lm",
+                formula = y ~ x, 
+                se = FALSE, 
+                colour="red", 
+                size=1) +
+    xlab("Reporting Period") +
+    ylab("Number of Work Items") +
+    theme(legend.position="bottom",
+          legend.direction="horizontal",
+          legend.title = element_blank())
+```
+
+
+## Defect Cycle Time
+```{r defect_cycle_time, include=TRUE, echo=FALSE}
+defect <- tib %>% filter(! is.na(Closed)) %>% filter(Type == "Defect")
+ggplot(defect, aes(x=cldt, y=cylt)) +
+    geom_point(aes(colour = factor(Priority))) +
+    geom_smooth(method = "lm",
+                formula = y ~ x, 
+                se = FALSE, 
+                colour="#FF9999", 
+                size=1) +
+    xlab("Reporting Period") +
+    ylab("Cycle Time (Days)") +
+    theme(legend.position="bottom",
+          legend.direction="horizontal",
+          legend.title = element_blank())
+```
+

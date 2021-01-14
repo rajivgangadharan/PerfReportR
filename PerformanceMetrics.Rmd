@@ -1,0 +1,185 @@
+---
+title: "Performance Metrics - Features, Stories & Defects"
+author: "Rajiv Gangadharan"
+date: "18/08/2020"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+params:
+  data: "../Datasets/Opics.dat"
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(flexdashboard) # libraries for controlling current rendering
+source("../Common/jirametrics.R")
+fileName <- params$data
+df <- readDataset(fileName)
+tib <- df %>% 
+      as_tibble() %>%
+      mutate(crdt = toDate(Created),
+             updt = toDate(Updated),
+             cldt = toDate(Closed),
+             cylt = as.numeric(getAge(crdt, cldt))
+      )
+```
+
+
+Features
+===========================================
+
+Column {data-width=600}
+-------------------------------------------
+
+### Feature Cycle Time
+```{r epics, include=TRUE, echo=FALSE}
+color_point <- c(finastra_cols("crimson"),
+                 finastra_cols("orange"),
+                 finastra_cols("fuchsia"),
+                 finastra_cols("blue")
+                 )
+epics <- tib %>% filter(! is.na(Closed)) %>% filter(Type == "Epic")
+ggplot(epics, aes(x=cldt, y=cylt)) +
+    geom_point(aes(colour = factor(Priority))) +
+    geom_smooth(method = "loess",
+                formula = y ~ x, 
+                se = FALSE, 
+                colour=finastra_cols("crimson"),
+                linetype="dashed",
+                size=0.75) +
+    xlab("Reporting Period") +
+    ylab("Cycle Time (Days)") +
+    scale_fill_manual(values=color_point) +
+    finastra_theme
+```
+
+Column {data-width=600}
+-------------------------------------------
+
+### Feature Throughput
+```{r feature_throughput_line_plot, include=TRUE, echo=FALSE}
+throughput_df.epics  <- epics %>%   group_by(cldt) %>%  
+  summarise(nwi = length(Key),.groups='keep')
+ggplot(throughput_df.epics, aes(x=cldt, y=nwi)) +
+    geom_line() +
+  geom_point(size=2, color="#FF9999") +
+    geom_smooth(method = "lm",
+                formula = y ~ x, 
+                se = FALSE, 
+                colour="red", 
+                size=1) +
+    xlab("Reporting Period") +
+    ylab("Number of Work Items") +
+    finastra_theme
+```
+
+Stories
+===========================================
+
+Column {data-width=600}
+-------------------------------------------
+
+### Story Cycle Time (All)
+```{r story_all, include=TRUE, echo=FALSE}
+color_point <- c(finastra_cols("crimson"),
+                 finastra_cols("orange"),
+                 finastra_cols("fuchsia"),
+                 finastra_cols("blue")
+                 )
+stories_all <- tib %>% filter(! is.na(Closed)) %>% filter(Type == "Story")
+ggplot(stories_all, aes(x=cldt, y=cylt)) +
+    geom_point(aes(colour = factor(Priority))) +
+    geom_smooth(method = "loess",
+                formula = y ~ x, 
+                se = FALSE, 
+                colour=finastra_cols("crimson"),
+                linetype="dashed",
+                size=0.75) +
+    xlab("Reporting Period") +
+    ylab("Cycle Time (Days)") +
+    scale_fill_manual(values=color_point) +
+    finastra_theme  
+```
+
+
+### Story Cycle Time (Critical & High)
+```{r story_critical_and_high, include=TRUE, echo=FALSE}
+color_point <- c(finastra_cols("crimson"),
+                 finastra_cols("orange"),
+                 finastra_cols("fuchsia"),
+                 finastra_cols("blue")
+                 )
+stories_critical_and_high <- tib %>% 
+  filter(! is.na(Closed)) %>% filter(Type == "Story") %>%
+  filter(Priority == 'Critical' | Priority == 'High' )
+ggplot(stories_critical_and_high, aes(x=cldt, y=cylt)) +
+    geom_point(aes(colour = factor(Priority))) +
+    geom_smooth(method = "loess",
+                formula = y ~ x, 
+                se = FALSE, 
+                colour=finastra_cols("crimson"),
+                linetype="dashed",
+                size=0.75) +
+    xlab("Reporting Period") +
+    ylab("Cycle Time (Days)") +
+    scale_fill_manual(values=color_point) +
+    finastra_theme
+```
+
+Column {data-width=600}
+-------------------------------------------
+
+### Story Throughput
+```{r stories_throughput, include=TRUE, echo=FALSE}
+throughput_df.stories  <- stories_all %>%   group_by(cldt) %>%  
+  summarise(nwi = length(Key),.groups='drop')
+ggplot(throughput_df.stories, aes(x=cldt, y=nwi)) +
+    geom_line() +
+    geom_point(size=2, color="#FF9999") +
+    geom_smooth(method = "lm",
+                formula = y ~ x, 
+                se = FALSE, 
+                colour="red", 
+                size=1) +
+    xlab("Reporting Period") +
+    ylab("Number of Work Items") +
+    finastra_theme
+```
+
+Defects
+===========================================
+
+Column {data-width=600}
+-------------------------------------------
+
+### Defect Cycle Time
+```{r defect_cycle_time, include=TRUE, echo=FALSE}
+defect.closed <- tib %>% filter(! is.na(Closed)) %>% filter(Type == "Defect")
+ggplot(defect.closed, aes(x=cldt, y=cylt)) +
+    geom_point(aes(colour = factor(Priority))) +
+    geom_smooth(method = "lm",
+                formula = y ~ x, 
+                se = FALSE, 
+                colour="#FF9999", 
+                size=1) +
+    xlab("Reporting Period") +
+    ylab("Cycle Time (Days)") +
+    finastra_theme
+```
+
+Column {data-width=600}
+-------------------------------------------
+
+### Closed Defects (Critical, Top50)
+
+```{r defect_top_n, include=TRUE, echo=FALSE}
+knitr::kable(head(defect.closed %>% filter(Priority == "Critical") %>%
+                    arrange(desc(cylt)),50) %>%
+               top_n(50,cylt) %>%
+               select(Key, Priority, cylt)) %>%
+  kable_styling("striped",font_size = 8) %>%
+  column_spec(2, width="5cm")
+```

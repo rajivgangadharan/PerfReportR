@@ -1,0 +1,78 @@
+---
+title: "Operations Metrics"
+author: "Rajiv Gangadharan"
+date: "18/08/2020"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+params:
+  data: "./Datasets/Opics.dat"
+  date_from: "2020-03-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(flexdashboard) # libraries for controlling current rendering
+source("./Common/jirametrics.R")
+options(dplyr.summarise.inform = FALSE)
+fileName <- params$data
+df <- readDataset(fileName)
+tib <- df %>% 
+      as_tibble() %>%
+      mutate(crdt = toDate(Created),
+             updt = toDate(Updated),
+             cldt = toDate(Closed),
+             cylt = as.numeric(getAge(crdt, cldt))
+      ) %>%
+      filter(cldt >= as.Date(params$date_from))
+```
+
+
+Throughput
+===========================================
+
+Column {data-width=600}
+-------------------------------------------
+
+### Throughput (Count/Date)
+
+```{r stories_wk_agg, include=TRUE, echo=FALSE}
+
+stories <- tib %>% filter(Type == "Story")
+stories_wk_agg <- stories %>% 
+                  mutate(FloorDate = lubridate::floor_date(cldt, unit="weeks", week_start = 1)) %>%
+                  mutate(Week = lubridate::isoweek(cldt)) %>%
+                  group_by(FloorDate, Priority)  %>% 
+                  summarise(nclosed = n()) 
+
+ggplot(stories_wk_agg, aes(x=FloorDate, y=nclosed, fill=Priority)) +
+    geom_bar(stat="identity") +
+    xlab("Reporting Period") +
+    ylab("Throughput") +
+    scale_x_date(date_labels = "%b/%y", date_breaks = "2 weeks") +
+    scale_fill_manual(values=branded_pal()(4)) +
+    finastra_theme +
+    theme(axis.text.x = element_text(angle = 90))
+```
+
+Column {data-width=600}
+-------------------------------------------
+### Throughput (#Weeks/Count)
+
+```{r stories_ncount_agg, include=TRUE, echo=FALSE}
+
+stories_ncount_agg <- stories %>% 
+      mutate(FloorDate = lubridate::floor_date(cldt, unit="weeks", week_start = 1)) %>%
+      mutate(Week = lubridate::isoweek(cldt)) %>% group_by(Week) %>% 
+      summarise(ncount = n()) %>% ungroup() %>% 
+      group_by(ncount) %>% summarise(nweeks=n())
+
+ggplot(stories_ncount_agg, aes(x=nweeks, y=ncount)) +
+    geom_bar(stat="identity") +
+    ylab("Throughput (Number Closed)") +
+    xlab("# Weeks") +
+    scale_fill_manual(values=branded_pal()(1)) +
+    finastra_theme
+```
+
