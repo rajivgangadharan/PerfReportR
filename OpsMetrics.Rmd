@@ -1,4 +1,8 @@
 ---
+params:
+  data: "./Datasets/Opics.dat"
+  date_from: "2020-03-18"
+  
 title: "Operations Metrics"
 author: "Rajiv Gangadharan"
 date: "18/08/2020"
@@ -6,9 +10,7 @@ output:
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
-params:
-  data: "./Datasets/Opics.dat"
-  date_from: "2020-03-18"
+
 ---
 
 ```{r setup, include=FALSE}
