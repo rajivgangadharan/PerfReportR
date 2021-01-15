@@ -8,8 +8,9 @@ author: "Rajiv Gangadharan"
 date: "18/08/2020"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: columns
-    vertical_layout: fill
+      orientation: columns
+      vertical_layout: fill
+      social: ["twitter","facebook","menu"]
 
 ---
 
@@ -19,6 +20,10 @@ library(flexdashboard) # libraries for controlling current rendering
 source("./Common/jirametrics.R")
 options(dplyr.summarise.inform = FALSE)
 fileName <- params$data
+date_from <- params$date_from
+#fileName <- "./Datasets/Opics.dat"
+#date_from <- "2020-03-18"
+
 df <- readDataset(fileName)
 tib <- df %>% 
       as_tibble() %>%
@@ -27,28 +32,47 @@ tib <- df %>%
              cldt = toDate(Closed),
              cylt = as.numeric(getAge(crdt, cldt))
       ) %>%
-      filter(cldt >= as.Date(params$date_from))
+      filter(cldt >= as.Date(date_from))
 ```
 
 
-Throughput
+Throughput {.storyboard}
 ===========================================
 
-Column {data-width=600}
--------------------------------------------
+### **Completed items/Week** Tells us the number of work items (stories) completed aggregated for each week which is an indication of how stable the throughput is.
 
-### Throughput (Count/Date)
+```{r completed_items_week, include=TRUE, echo=FALSE}
+
+stories <- tib %>% filter(Type == "Story")
+
+stories_grouped_by_week <- stories %>% 
+      mutate(WeekBegining = lubridate::floor_date(cldt, unit="weeks", week_start = 1)) %>%
+      mutate(Week = lubridate::isoweek(cldt)) %>% group_by(Week)
+
+stories_ncount_by_week <- stories_grouped_by_week %>% ungroup() %>% 
+                          group_by(WeekBegining) %>% summarise(WeeklyCount = n())
+ggplotly(ggplot(stories_ncount_by_week, aes(x=WeekBegining, y=WeeklyCount)) +
+  geom_line(color=finastra_colors["charcoal"]) + 
+    geom_point(color=finastra_colors["crimson"]) +
+    xlab("Week") + ylab("Count of work items") + 
+  scale_fill_manual(values=branded_pal()(1)) + finastra_theme)
+
+```
+
+
+### **Throughput (Count/Date)** tells us the number of stories delivered aggregated every week. The date is the begining monday of every week.
 
 ```{r stories_wk_agg, include=TRUE, echo=FALSE}
 
-stories <- tib %>% filter(Type == "Story")
+
 stories_wk_agg <- stories %>% 
                   mutate(FloorDate = lubridate::floor_date(cldt, unit="weeks", week_start = 1)) %>%
                   mutate(Week = lubridate::isoweek(cldt)) %>%
                   group_by(FloorDate, Priority)  %>% 
                   summarise(nclosed = n()) 
 
-ggplot(stories_wk_agg, aes(x=FloorDate, y=nclosed, fill=Priority)) +
+
+plot_stories_wk_agg <- ggplot(stories_wk_agg, aes(x=FloorDate, y=nclosed, fill=Priority)) +
     geom_bar(stat="identity") +
     xlab("Reporting Period") +
     ylab("Throughput") +
@@ -56,25 +80,28 @@ ggplot(stories_wk_agg, aes(x=FloorDate, y=nclosed, fill=Priority)) +
     scale_fill_manual(values=branded_pal()(4)) +
     finastra_theme +
     theme(axis.text.x = element_text(angle = 90))
+
+ggplotly(plot_stories_wk_agg)
+
 ```
 
-Column {data-width=600}
--------------------------------------------
-### Throughput (#Weeks/Count)
+### **Throughput (#Weeks/Count)** Tells us; How many weeks do we have were the throughput has a particular number? Is this the sustainable pace of delivery?
+
 
 ```{r stories_ncount_agg, include=TRUE, echo=FALSE}
 
-stories_ncount_agg <- stories %>% 
-      mutate(FloorDate = lubridate::floor_date(cldt, unit="weeks", week_start = 1)) %>%
-      mutate(Week = lubridate::isoweek(cldt)) %>% group_by(Week) %>% 
+
+
+stories_nweek_with_ncount <- stories_grouped_by_week %>% 
       summarise(ncount = n()) %>% ungroup() %>% 
       group_by(ncount) %>% summarise(nweeks=n())
 
-ggplot(stories_ncount_agg, aes(x=nweeks, y=ncount)) +
+ggplotly(ggplot(stories_nweek_with_ncount, aes(x=ncount, y=nweeks)) +
     geom_bar(stat="identity") +
-    ylab("Throughput (Number Closed)") +
-    xlab("# Weeks") +
+    ylab("# Weeks with this throughput") +
+    xlab("Throughput Value (#Stories in one calender week)") +
     scale_fill_manual(values=branded_pal()(1)) +
-    finastra_theme
+    finastra_theme)
 ```
+
 

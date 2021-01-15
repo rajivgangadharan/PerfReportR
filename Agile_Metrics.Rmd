@@ -1,4 +1,8 @@
 ---
+params:
+  data: "./Datasets/Opics.dat"
+  date_from: "2020-03-18"
+  
 title: "Performance Metrics - Features, Stories & Defects"
 author: "Rajiv Gangadharan"
 date: "18/08/2020"
@@ -6,9 +10,7 @@ output:
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
-params:
-  data: "./Datasets/Opics.dat"
-  date_from: "2020-03-18"
+
 ---
 
 
@@ -16,8 +18,9 @@ params:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(flexdashboard) # libraries for controlling current rendering
-source("../Common/jirametrics.R")
+source("./Common/jirametrics.R")
 fileName <- params$data
+# fileName <- "./Datasets/Opics.dat"
 df <- readDataset(fileName)
 tib <- df %>% 
       as_tibble() %>%
@@ -183,18 +186,11 @@ ggplot(defect.closed, aes(x=cldt, y=cylt)) +
 Column {data-width=600}
 -------------------------------------------
 
-### Closed Defects (Critical, Top50)
+### Closed Defects (Critical)
 
-```{r defect_top_n, include=TRUE, echo=FALSE}
-knitr::kable(
-  head(
-    defect.closed %>% filter(Priority == "Critical") %>%
-      arrange(desc(cylt)),
-    50
-  ) %>%
-    top_n(50, cylt) %>%
-    select(Key, Priority, cylt)
-) %>%
-  kable_styling("striped", font_size = 8) %>%
-  column_spec(2, width = "5cm")
+```{r defect_table, include=TRUE, echo=FALSE}
+DT::datatable(
+      defect.closed %>% filter(Priority == "Critical") %>%
+      select(Key, Priority, cylt)
+  )
 ```
