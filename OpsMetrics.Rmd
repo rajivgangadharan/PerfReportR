@@ -108,7 +108,7 @@ ggplotly(plot_stories_nweek_with_ncount)
 
 ```
 
-### **Work In Progress (#Aged Days/Week)** Tells us; How much of inventory are we carrying in terms of aged days for the stories which are not complete? _This is a good indication of project risk_
+### **Work In Progress (#Aged Days/Week)** Tells us; How much of inventory are we carrying in terms of aged days? _This is a good indication of project risk_
 
 ```{r stories_open_days_by_week, include=TRUE, echo=FALSE}
 
