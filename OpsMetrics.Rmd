@@ -96,12 +96,45 @@ stories_nweek_with_ncount <- stories_grouped_by_week %>%
       summarise(ncount = n()) %>% ungroup() %>% 
       group_by(ncount) %>% summarise(nweeks=n())
 
-ggplotly(ggplot(stories_nweek_with_ncount, aes(x=ncount, y=nweeks)) +
+plot_stories_nweek_with_ncount <- 
+  ggplot(stories_nweek_with_ncount, aes(x=ncount, y=nweeks)) +
     geom_bar(stat="identity") +
     ylab("# Weeks with this throughput") +
     xlab("Throughput Value (#Stories in one calender week)") +
     scale_fill_manual(values=branded_pal()(1)) +
-    finastra_theme)
+    finastra_theme
+
+ggplotly(plot_stories_nweek_with_ncount)
+
 ```
 
+### **Work In Progress (#Aged Days/Week)** Tells us; How much of inventory are we carrying in terms of aged days for the stories which are not complete? _This is a good indication of project risk_
 
+```{r stories_open_days_by_week, include=TRUE, echo=FALSE}
+
+getWIPDays <- function(loopdt) {
+  if (! is.Date(loopdt)) {
+    loopdt <- as.Date(loopdt)
+  }
+  paste0("processing ", loopdt)
+  
+  # this gives the index of all the records which are WIP on that
+  # loopdt
+  index <- sapply(stories_grouped_by_week$cldt, isWIP, loopdt)
+  
+  # Then sum up the ages of all those records
+  sum(sapply(stories_grouped_by_week[index,]$crdt, getAge, loopdt))
+}
+
+wipdays <- lapply(stories_grouped_by_week$WeekBegining, getWIPDays)
+
+wip_tibble <- tibble(Dt=stories_grouped_by_week$WeekBegining, 
+              WorkInProgress = wipdays) %>% distinct()
+wip_plot <- ggplot(wip_tibble,
+                   aes(x = Dt, y = WorkInProgress)) + 
+            geom_area(fill = finastra_colors["orange"]) +
+            xlab("Dates") + ylab("Work in Progress (Days)") +
+            scale_fill_manual(finastra_colors["orange"]) +
+            finastra_theme
+ggplotly(wip_plot)
+```

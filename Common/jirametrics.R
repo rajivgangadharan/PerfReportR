@@ -132,15 +132,21 @@ finastra_theme <-
         panel.grid.minor.y = element_blank())
 
 
-
-wip.getAgeIfOpenInDays <- function(rec, loopDt) {
-  stopifnot(is.Date(rec$crdt) && is.Date(rec$cldt))
-  ageOfRec <- function(rec) {
-    loopDt - rec$crdt
-  }
-  if (rec$crdt < loopDt && rec$cldt > loopDt) { 
-    wip.ageOfRec(rec) 
-  } else { 
-    0
+isWIP <- function(cldt, loopdt) {
+  stopifnot(is.Date(cldt) && is.Date(loopdt))
+  if (cldt >= loopdt) {
+    TRUE
+  } else {
+    FALSE
   }
 }
+
+getAge <- function(crdt, loopdt) {
+  stopifnot(is.Date(crdt) && is.Date(loopdt))
+  if (crdt < loopdt) {
+    as.numeric(loopdt - crdt)
+  } else
+    0
+}
+
+
