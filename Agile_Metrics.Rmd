@@ -10,6 +10,7 @@ output:
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
+    social: ["twitter","facebook","menu"]
 
 ---
 
@@ -32,6 +33,71 @@ tib <- df %>%
      filter(cldt >= as.Date(params$date_from))
 ```
 
+
+Features (Interactive)
+===========================================
+
+Column {data-width=600}
+-------------------------------------------
+
+### Feature Cycle Time
+
+```{r epics_with_plotly, include=TRUE, echo=FALSE}
+color_point <- c(finastra_cols("crimson"),
+                 finastra_cols("orange"),
+                 finastra_cols("fuchsia"),
+                 finastra_cols("blue")
+                )
+epics <- tib %>% filter(! is.na(Closed)) %>% 
+                 filter(Type == "Epic")
+
+cldt <- epics$cldt
+cylt <- epics$cylt
+
+sp.base = smooth.spline(cylt, cldt)
+
+line.fmt.rmean5 <- list(dash="dash", width = 2, colors=finastra_cols("crimson"))
+line.fmt.linear <- list(dash="solid", width = 2, colors=finastra_cols("crimson"))
+
+m1 <- lm(cldt ~ cylt)
+rmean5 = stats::filter(cylt, rep(1/5, 5), side=2)
+
+epics_cycle_time_plot <- plot_ly(data = epics, 
+                                 x = ~cldt, 
+                                 y = ~cylt)
+
+# epics_cycle_time_plot <- add_lines(epics_cycle_time_plot, x = cldt,
+#                                    y = predict(m1),
+#                                    line = line.fmt.linear, name = "Linear")
+
+epics_cycle_time_plot <- add_lines(epics_cycle_time_plot, x = cldt,
+                                     y = rmean5,
+                                     line = line.fmt.rmean5, 
+                                     name = "Running Mean (Bandwidth = 5)",
+                                     colors = "Accent"
+                                   )
+
+epics_cycle_time_plot <- add_trace(epics_cycle_time_plot, 
+                                     type = "scatter", mode = "markers",
+                                     color = ~Priority,
+                                     colors = "Accent"
+                                   )
+
+
+epics_cycle_time_plot <-  epics_cycle_time_plot %>%
+  layout(
+    title = "Epics Cycle Time",
+    xaxis = list(title =
+                   "Dates"),
+    yaxis = list(title =
+                   "Cycle Times")
+  ) 
+
+epics_cycle_time_plot
+                  
+                 
+
+```
 
 Features
 ===========================================
