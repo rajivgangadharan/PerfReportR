@@ -10,10 +10,16 @@ require(blogdown)
 require(plotly)
 require(r2d3)
 
+
 if (!require("DT")) install.packages('rstudio/DT')
 if (!require("rlist")) devtools::install_github("renkun-ken/rlist")
 if (!require("highcharter")) install.packages("highcharter")
 if (!require("r2d3")) install.packages("r2d3")
+if (!require("blogdown")) install.packages("blogdown")
+if (!require("TTR")) install.packages("TTR")
+if (!require("doParallel")) install.packages("doParallel")
+if (!require("foreach")) install.packages("foreach")
+
 
 library(flexdashboard)
 library(knitr)
@@ -37,8 +43,7 @@ finastra_colors <- list(
   `violet` = "#694ED6",
   `tan` = "#C7C8CA",
   `charcoal`= "#414141"
-  )
-
+)
 
 
 finastra_cols <- function(...) {
@@ -57,17 +62,17 @@ color_point <- c(finastra_cols("crimson"),
 branded_pal <- function(primary = "fuchsia", other="violet", direction = 1) {
   stopifnot(primary %in% names(finastra_colors))
   function(n) {
-    if (n > 11) warning("Branded Color Palette only has 11 colors.")
+    if (n > 10) warning("Branded Color Palette only has 10 colors.")
     if (n == 2) {
       other <- if (! other %in% names(finastra_colors) ) {
-        other
+        other # returns the other as-is
       } else {
-        finastra_colors[other]
+        finastra_colors[other] # finastra other color
       }
-      color_list <- c(other, finastra_colors[primary])
+      color_list <- c(other, finastra_colors[primary]) # appending other with primary
       
     } else {
-      color_list <- finastra_colors[1:n]
+      color_list <- finastra_colors[1:n] # returning the list till the number n
     }
       color_list <- unname(unlist(color_list))
       if (direction >= 0) color_list else rev(color_list)
@@ -99,14 +104,39 @@ minDate <- function(dateVec) {
   return (min(dateVec, na.rm=TRUE))
 }
 
-getAge <- function(beginDate, endDate=Sys.Date()) {
-  if (! is.Date(beginDate) || ! is.Date(endDate)) {
-    ageInDays <- difftime(toDate(endDate),toDate(beginDate), units="days")
-  } else {
-    ageInDays <- difftime(endDate,beginDate,units="days")
-  }
-  ageInDays
+isWIP <- function(x, loop_date=loopdt) {
+  stopifnot(is.Date(loop_date)) 
+  # Assert for loop_date being a date.
+  ifelse(x["Created"] < loop_date && is.na(x["Closed"]),
+         TRUE,
+         ifelse(!is.na(x["Closed"])  && x["Closed"] > loop_date, 
+                TRUE, 
+                FALSE))
 }
+
+getWIPInDays <- function(x, loop_date=loopdt) {
+  stopifnot(is.Date(loop_date)) 
+  ifelse(x["Created"] < loop_date && is.na(x["Closed"]), 
+         getAgeInDays(x["Created"]),
+          ifelse(!is.na(x["Closed"])  && x["Closed"] > loop_date,
+                  getAgeInDays(x["Created"],x["Closed"]),
+                 0))
+}
+
+getSumOfWIPInDays <- function(x, loop_date) {
+  sum(apply(x, 1, getWIPInDays, ymd(loop_date)))
+}
+
+# Tested using
+# tib$WIPDAYS_2021_02_21 <- apply(tib, 1, getWIPInDays, ymd("2021-02-21"))
+# Tested using tib$WIP_2021_02_21 <- apply(tib, 1, isWIP, ymd("2021-02-21"))
+
+getAgeInDays <- function(beginDate, endDate=Sys.Date()) {
+  beginDate <- as.Date(beginDate)
+  endDate <- as.Date(endDate)
+  as.numeric(difftime(endDate, beginDate, units="days"))
+}
+
 
 readDataset <- function(fileName, sep='|') {
   # Loading the tab separated file
@@ -118,10 +148,7 @@ readDataset <- function(fileName, sep='|') {
 
 
 readCSVDataset <- function(fileName, sep='|') {
-  if (! file.exists(fileName)) {
-    paste0("'", fileName, "' does not exist, check the file name and full path.")
-    return(NULL)
-  }
+  stopifnot(file.exists(fileName))
   df <- read.csv2(fileName, header=TRUE, sep=sep)
   df
 }
@@ -135,21 +162,5 @@ finastra_theme <-
         panel.grid.minor.y = element_blank())
 
 
-isWIP <- function(cldt, loopdt) {
-  stopifnot(is.Date(cldt) && is.Date(loopdt))
-  if (cldt >= loopdt) {
-    TRUE
-  } else {
-    FALSE
-  }
-}
-
-getAge <- function(crdt, loopdt) {
-  stopifnot(is.Date(crdt) && is.Date(loopdt))
-  if (crdt < loopdt) {
-    as.numeric(loopdt - crdt)
-  } else
-    0
-}
 
 

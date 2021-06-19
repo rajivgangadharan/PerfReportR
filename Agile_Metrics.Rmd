@@ -3,18 +3,15 @@ params:
   data: "./Datasets/Opics.dat"
   date_from: "2020-03-18"
   
-title: "Performance Metrics - Features, Stories & Defects"
+title: "Performance Metrics"
 author: "Rajiv Gangadharan"
 date: "18/08/2020"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: columns
+    orientation: rows
     vertical_layout: fill
     social: ["twitter","facebook","menu"]
-
 ---
-
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -31,16 +28,103 @@ tib <- df %>%
              cylt = as.numeric(getAge(crdt, cldt))
       ) %>%
      filter(cldt >= as.Date(params$date_from))
+
+# Visuals Setup 
+line.fmt.rmean5 <- list(dash="dash", width = 2, colors=finastra_cols("crimson"))
+line.fmt.sma5 <- list(dash="dot", width = 2, colors=finastra_cols("crimson"))
+line.fmt.sma10 <- list(dash="dash", width = 2, colors=finastra_cols("violet"))
+line.fmt.linear <- list(dash="solid", width = 2, colors=finastra_cols("orange"))
+line.fmt.smooth <- list(dash="solid", width = 2, colors=finastra_cols("fuchsia"))
+
 ```
 
 
-Features (Interactive)
+Cycle Time Trend
 ===========================================
 
-Column {data-width=600}
+Row {data-height=600}
 -------------------------------------------
 
-### Feature Cycle Time
+### Feature Cycle Time Regression
+
+```{r feature_cycle_time_trend, include=TRUE, echo=FALSE}
+color_point <- c(finastra_cols("crimson"),
+                 finastra_cols("orange"),
+                 finastra_cols("fuchsia"),
+                 finastra_cols("blue")
+                )
+epics <- tib %>% filter(! is.na(Closed)) %>% 
+                 filter(Type == "Epic")
+
+epics.cldt <- epics$cldt
+epics.cylt <- epics$cylt
+
+# sp.base = smooth.spline(cylt, cldt)
+
+line.fmt.linear <-
+  list(dash = "solid",
+       width = 2,
+       color = finastra_cols("orange"))
+
+
+m1 <- lm(epics.cylt ~ epics.cldt) # Liner regression line
+
+
+epics_cycle_time_plot <- plot_ly() %>% 
+  add_trace(y = ~epics.cylt,  
+            x = ~epics.cldt,
+            type="scatter",
+            mode = "markers",
+            name = "Cycle Time")
+
+line.fmt.rmean5 <-
+  list(dash = "dash",
+       width = 2,
+       color = finastra_colors["crimson"])
+rmean5 = stats::filter(
+  epics.cylt,
+  # Uni-variate time series
+  method = "convolution",
+  filter = rep(1 / 5, 5),
+  sides = 2
+)
+
+epics_cycle_time_plot <- add_lines(
+  epics_cycle_time_plot,
+  x = epics.cldt,
+  y = rmean5,
+  line = line.fmt.rmean5,
+  name = "Running Mean (Bandwidth = 5)",
+  colors = "Accent"
+)
+
+epics_cycle_time_plot <- add_lines(
+  epics_cycle_time_plot,
+  x = epics.cldt,
+  y = predict(m1),
+  line = line.fmt.linear,
+  name = "Linear Regression"
+)
+
+epics_cycle_time_plot <-  epics_cycle_time_plot %>%
+  layout(
+    xaxis = list(title = "Dates"),
+    yaxis = list(title = "Cycle Times")
+  ) 
+
+#plot_epics_throughput
+epics_cycle_time_plot
+
+
+```
+
+Feature Throughput & Cycle Time Trend
+===========================================
+
+Row {data-height=600}
+-------------------------------------------
+
+### Feature Throughput
 
 ```{r epics_with_plotly, include=TRUE, echo=FALSE}
 color_point <- c(finastra_cols("crimson"),
@@ -51,105 +135,92 @@ color_point <- c(finastra_cols("crimson"),
 epics <- tib %>% filter(! is.na(Closed)) %>% 
                  filter(Type == "Epic")
 
-cldt <- epics$cldt
-cylt <- epics$cylt
+epics.cldt <- epics$cldt
+epics.cylt <- epics$cylt
 
-sp.base = smooth.spline(cylt, cldt)
+# sp.base = smooth.spline(cylt, cldt)
 
-line.fmt.rmean5 <- list(dash="dash", width = 2, colors=finastra_cols("crimson"))
-line.fmt.linear <- list(dash="solid", width = 2, colors=finastra_cols("crimson"))
 
-m1 <- lm(cldt ~ cylt)
-rmean5 = stats::filter(cylt, rep(1/5, 5), side=2)
+rmean5 = stats::filter(epics.cylt, # Uni-variate time series
+                       method = "convolution",
+                       filter = rep(1/5, 5),
+                       sides = 2)
 
-epics_cycle_time_plot <- plot_ly(data = epics, 
-                                 x = ~cldt, 
-                                 y = ~cylt)
+sma5 <- TTR::SMA(epics.cylt, n = 5)
+sma10 <- TTR::SMA(epics.cylt, n = 10)
 
-# epics_cycle_time_plot <- add_lines(epics_cycle_time_plot, x = cldt,
+epics_cycle_time_plot <- plot_ly()
+epics_cycle_time_plot <-  add_trace(epics_cycle_time_plot,
+                                    y = ~epics.cylt,
+                                    x = ~epics.cldt,
+                                    type="scatter",
+                                    mode = "markers",
+                                    name = "Cycle Time")
+
+
+# epics_cycle_time_plot <- add_lines(epics_cycle_time_plot, x = epics.cldt,
 #                                    y = predict(m1),
-#                                    line = line.fmt.linear, name = "Linear")
+#                                    line = line.fmt.linear, name = "Linear Regression")
 
-epics_cycle_time_plot <- add_lines(epics_cycle_time_plot, x = cldt,
-                                     y = rmean5,
-                                     line = line.fmt.rmean5, 
-                                     name = "Running Mean (Bandwidth = 5)",
-                                     colors = "Accent"
-                                   )
+# epics_cycle_time_plot <- add_lines(epics_cycle_time_plot, x = epics.cldt,
+#                                      y = sma5,
+#                                      line = line.fmt.sma5,
+#                                      name = "SMA(Bandwidth = 5)",
+#                                      colors = "Accent"
+#                                    )
+# 
+# epics_cycle_time_plot <- add_lines(epics_cycle_time_plot, x = epics.cldt,
+#                                      y = sma10,
+#                                      line = line.fmt.sma10,
+#                                      name = "SMA (Bandwidth = 10)",
+#                                      colors = "Accent"
+#                                    )
 
-epics_cycle_time_plot <- add_trace(epics_cycle_time_plot, 
-                                     type = "scatter", mode = "markers",
-                                     color = ~Priority,
-                                     colors = "Accent"
-                                   )
+epics_cycle_time_plot <-
+  add_lines(
+    epics_cycle_time_plot,
+    x = epics.cldt,
+    y = rmean5,
+    line = line.fmt.rmean5,
+    name = "Running Mean (Bandwidth = 5)",
+    colors = finastra_colors[1:10]
+  )
 
+#epics_cycle_time_plot
+
+throughput_df.epics  <- epics %>%
+  group_by(cldt) %>%
+  summarise(nwi = length(Key), .groups = 'keep')
+
+model_epics_throughput_linear <- lm(throughput_df.epics$nwi ~
+                                      throughput_df.epics$cldt)
+
+epics_cycle_time_plot <- add_trace(
+  epics_cycle_time_plot,
+  data = throughput_df.epics,
+  x = throughput_df.epics$cldt,
+  y = throughput_df.epics$nwi,
+  name = "Throughput",
+  type = "bar",
+  yaxis = "y2"
+)
 
 epics_cycle_time_plot <-  epics_cycle_time_plot %>%
   layout(
-    title = "Epics Cycle Time",
-    xaxis = list(title =
-                   "Dates"),
-    yaxis = list(title =
-                   "Cycle Times")
+    xaxis = list(title = "Dates"),
+    yaxis = list(title = "Cycle Times"),
+    yaxis2 = list(title = "Throughput",
+                  overlaying = "y",
+                  side = "right")
   ) 
 
+#plot_epics_throughput
 epics_cycle_time_plot
-                  
-                 
+
 
 ```
 
-Features
-===========================================
-
-Column {data-width=600}
--------------------------------------------
-
-### Feature Cycle Time
-```{r epics, include=TRUE, echo=FALSE}
-color_point <- c(finastra_cols("crimson"),
-                 finastra_cols("orange"),
-                 finastra_cols("fuchsia"),
-                 finastra_cols("blue")
-                 )
-epics <- tib %>% filter(! is.na(Closed)) %>% 
-                 filter(Type == "Epic")
-                 
-ggplot(epics, aes(x=cldt, y=cylt)) +
-    geom_point(aes(colour = factor(Priority))) +
-    geom_smooth(method = "loess",
-                formula = y ~ x, 
-                se = FALSE, 
-                colour=finastra_cols("crimson"),
-                linetype="dashed",
-                size=0.75) +
-    xlab("Reporting Period") +
-    ylab("Cycle Time (Days)") +
-    scale_fill_manual(values=color_point) +
-    finastra_theme
-```
-
-Column {data-width=600}
--------------------------------------------
-
-### Feature Throughput
-```{r feature_throughput_line_plot, include=TRUE, echo=FALSE}
-throughput_df.epics  <- epics %>%   group_by(cldt) %>%  
-  summarise(nwi = length(Key),.groups='keep')
-ggplot(throughput_df.epics, aes(x=cldt, y=nwi)) +
-    geom_line() +
-  geom_point(size=2, color="#FF9999") +
-    geom_smooth(method = "lm",
-                formula = y ~ x, 
-                se = FALSE, 
-                colour="red", 
-                size=1) +
-    xlab("Reporting Period") +
-    ylab("Number of Work Items") +
-    finastra_theme
-```
-
-Stories
+Team Delivery
 ===========================================
 
 Column {data-width=600}
@@ -163,44 +234,39 @@ color_point <- c(finastra_cols("crimson"),
                  finastra_cols("blue")
                  )
 stories_all <- tib %>% filter(! is.na(Closed)) %>% filter(Type == "Story")
-ggplot(stories_all, aes(x=cldt, y=cylt)) +
-    geom_point(aes(colour = factor(Priority))) +
-    geom_smooth(method = "loess",
-                formula = y ~ x, 
-                se = FALSE, 
-                colour=finastra_cols("crimson"),
-                linetype="dashed",
-                size=0.75) +
-    xlab("Reporting Period") +
-    ylab("Cycle Time (Days)") +
-    scale_fill_manual(values=color_point) +
-    finastra_theme  
+# Selected only closed stories
+stories_all.cylt = stories_all$cylt
+stories_all.cldt = stories_all$cldt
+
+model_stories_all_linear <- lm(stories_all.cylt ~ stories_all.cldt)
+
+stories_all_cycle_time_plot <- plot_ly(stories_all)
+
+stories_all_cycle_time_plot <- add_trace(stories_all_cycle_time_plot,
+                                       y = ~stories_all.cylt,
+                                       x = ~stories_all.cldt,
+                                       color = ~stories_all$Priority,
+                                       type = "scatter",
+                                       mode = "markers",
+                                       size=5)
+
+# stories_all_cycle_time_plot <- add_trace(stories_all_cycle_time_plot,
+#                                          color = ~stories_all$Priority)
+
+stories_all_cycle_time_plot <- add_lines(stories_all_cycle_time_plot,
+                                         x = stories_all.cldt,
+                                         y = predict(model_stories_all_linear),
+                                         line = line.fmt.linear,
+                                         name = "Linear Regression")
+
+stories_all_cycle_time_plot <- layout(stories_all_cycle_time_plot,
+                                       xaxis = list(title="Closed Date"),
+                                       yaxis = list(title="# Work Items"))
+
+stories_all_cycle_time_plot
+
 ```
 
-
-### Story Cycle Time (Critical & High)
-```{r story_critical_and_high, include=TRUE, echo=FALSE}
-color_point <- c(finastra_cols("crimson"),
-                 finastra_cols("orange"),
-                 finastra_cols("fuchsia"),
-                 finastra_cols("blue")
-                 )
-stories_critical_and_high <- tib %>% 
-  filter(! is.na(Closed)) %>% filter(Type == "Story") %>%
-  filter(Priority == 'Critical' | Priority == 'High' )
-ggplot(stories_critical_and_high, aes(x=cldt, y=cylt)) +
-    geom_point(aes(colour = factor(Priority))) +
-    geom_smooth(method = "loess",
-                formula = y ~ x, 
-                se = FALSE, 
-                colour=finastra_cols("crimson"),
-                linetype="dashed",
-                size=0.75) +
-    xlab("Reporting Period") +
-    ylab("Cycle Time (Days)") +
-    scale_fill_manual(values=color_point) +
-    finastra_theme
-```
 
 
 ```{r stories_critical_and_high_boxplot, include=TRUE, echo=FALSE}
@@ -236,8 +302,10 @@ Column {data-width=600}
 
 ### Defect Cycle Time
 ```{r defect_cycle_time, include=TRUE, echo=FALSE}
-defect.closed <- tib %>% filter(! is.na(Closed)) %>% filter(Type == "Defect")
-ggplot(defect.closed, aes(x=cldt, y=cylt)) +
+defect.closed <- tib %>% filter(! is.na(Closed)) %>% 
+  filter(Type == "Defect") %>%
+  filter(Priority %in% c('High', 'Critical'))
+plot_defect_cycle_time <- ggplot(defect.closed, aes(x=cldt, y=cylt)) +
     geom_point(aes(colour = factor(Priority))) +
     geom_smooth(method = "lm",
                 formula = y ~ x, 
@@ -247,6 +315,7 @@ ggplot(defect.closed, aes(x=cldt, y=cylt)) +
     xlab("Reporting Period") +
     ylab("Cycle Time (Days)") +
     finastra_theme
+ggplotly(plot_defect_cycle_time)
 ```
 
 Column {data-width=600}
